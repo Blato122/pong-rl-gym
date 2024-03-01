@@ -9,16 +9,19 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+resume = False # resume from previous checkpoint?
 render = False
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('save.p', 'rb'))
+  model = pickle.load(open('change1_save.p', 'rb'))
 else:
   model = {}
-  model['W1'] = np.random.randn(H,D) / np.sqrt(D) # "Xavier" initialization
+  # - - - - - -
+  """ CHANGE 1 - H,D TO D,H"""
+  # - - - - - -
+  model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
   model['W2'] = np.random.randn(H) / np.sqrt(H)
   
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
@@ -38,19 +41,39 @@ def prepro(I):
 
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
+  print(r.shape)
   discounted_r = np.zeros_like(r)
   running_add = 0
-  for t in reversed(range(0, r.size)):
+  for t in reversed(range(r.shape[0])):
     if r[t] != 0: running_add = 0 # reset the sum, since this was a game boundary (pong specific!)
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
+  discounted_r -= np.mean(discounted_r)
+  discounted_r /= np.std(discounted_r)
   return discounted_r
 
 def policy_forward(x):
-  h = np.dot(model['W1'], x)
+  # - - - - - -
+  """ CHANGE 2 - @ NOTATION """
+  # - - - - - -
+
+  # matmul docs, applies below: 
+  # If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions.
+  # After matrix multiplication the prepended 1 is removed.
+  h = x @ model['W1'] # (6400,) @ (6400, 200) ---> (1, 6400) @ (6400, 200) ---> (1, 200) ---> (200,) 
+  # tested - ok
+
   h[h<0] = 0 # ReLU nonlinearity
-  logp = np.dot(model['W2'], h)
-  p = sigmoid(logp)
+
+  # matmul docs, both apply below:
+  # If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions.
+  # After matrix multiplication the prepended 1 is removed.
+  # If the second argument is 1-D, it is promoted to a matrix by appending a 1 to its dimensions.
+  # After matrix multiplication the appended 1 is removed.
+  logits = h @ model['W2'] # (200,) @ (200,) ---> (1, 200) @ (200, 1) ---> (1, 1) ---> (), scalar
+  # tested - ok
+
+  p = sigmoid(logits)
   return p, h # return probability of taking action 2, and hidden state
 
 def policy_backward(eph, epdlogp):
@@ -119,7 +142,10 @@ while True:
 
     epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
     grad = policy_backward(eph, epdlogp)
-    for k in model: grad_buffer[k] += grad[k] # accumulate grad over batch
+    for k in model: 
+      print(grad_buffer[k].shape)
+      print(grad[k].shape)
+      grad_buffer[k] += grad[k] # accumulate grad over batch
 
     # perform rmsprop parameter update every batch_size episodes
     if episode_number % batch_size == 0:
@@ -132,7 +158,7 @@ while True:
     # boring book-keeping
     running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
     print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_reward) )
-    if episode_number % 100 == 0: pickle.dump(model, open('save.p', 'wb'))
+    if episode_number % 100 == 0: pickle.dump(model, open('change1_save.p', 'wb'))
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
