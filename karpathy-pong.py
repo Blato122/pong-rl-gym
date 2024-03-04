@@ -4,12 +4,12 @@ import pickle
 import gymnasium as gym
 
 # hyperparameters
-H = 200 # number of hidden layer neurons
+H = 300 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+resume = False # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -25,10 +25,10 @@ else:
   model['W2'] = np.random.randn(H) / np.sqrt(H)
   
     # - - - - - -
-  """ CHANGE 4(?) - sgd instead of this rmsprop thing"""
+  """ CHANGE 4(?) - sgd instead of this rmsprop thing - HAD TO BRING THAT BACK LOOL"""
   # - - - - - -
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
-# rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
+rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
 def sigmoid(x): 
   return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
@@ -156,18 +156,19 @@ while True:
       grad_buffer[k] += grad[k] # accumulate grad over batch
 
     # perform rmsprop parameter update every batch_size episodes
-    # if episode_number % batch_size == 0:
-    #   for k,v in model.items():
-    #     g = grad_buffer[k] # gradient
-    #     rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
-    #     model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
-    #     grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
-      
     if episode_number % batch_size == 0:
-          print("update")
-          for k, v in model.items():
-              model[k] += learning_rate * grad_buffer[k] # update the parameters
-              grad_buffer[k] = np.zeros_like(v) # reset the gradients
+      for k,v in model.items():
+        g = grad_buffer[k] # gradient
+        rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
+        model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
+        # print(learning_rate / (np.sqrt(rmsprop_cache[k]) + 1e-5), learning_rate)
+        grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
+      
+    # if episode_number % batch_size == 0:
+    #       print("update")
+    #       for k, v in model.items():
+    #           model[k] += learning_rate * grad_buffer[k] # update the parameters
+    #           grad_buffer[k] = np.zeros_like(v) # reset the gradients
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
