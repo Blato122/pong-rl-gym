@@ -9,7 +9,7 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = False # resume from previous checkpoint?
+resume = True # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -41,7 +41,7 @@ def prepro(I):
 
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
-  print(r.shape)
+  print("rewards shape:", r.shape)
   discounted_r = np.zeros_like(r)
   running_add = 0
   for t in reversed(range(r.shape[0])):
@@ -77,11 +77,18 @@ def policy_forward(x):
   return p, h # return probability of taking action 2, and hidden state
 
 def policy_backward(eph, epdlogp):
+    # - - - - - -
+  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model """
+  # - - - - - -
   """ backward pass. (eph is array of intermediate hidden states) """
-  dW2 = np.dot(eph.T, epdlogp).ravel()
-  dh = np.outer(epdlogp, model['W2'])
-  dh[eph <= 0] = 0 # backpro prelu
-  dW1 = np.dot(dh.T, epx)
+  dW2 = (eph.T @ epdlogp).ravel() #dW2 = np.dot(eph.T, epdlogp).ravel()
+  # print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
+  # print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
+  dh = np.outer(epdlogp, model["W2"]) #dh = epdlogp @ model["W2"].T #dh = np.outer(epdlogp, model['W2'])
+  # print("dh, epdlogp, modelW2", dh.shape, epdlogp.shape, model['W2'].shape)
+  dh[eph <= 0] = 0 # backprop relu
+  dW1 = epx.T @ dh #dW1 = np.dot(dh.T, epx)
+  # print("W1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'W2':dW2}
 
 env = gym.make("Pong-v0")#, render_mode="human")
@@ -136,15 +143,13 @@ while True:
 
     # compute the discounted reward backwards through time
     discounted_epr = discount_rewards(epr)
-    # standardize the rewards to be unit normal (helps control the gradient estimator variance)
-    discounted_epr -= np.mean(discounted_epr)
-    discounted_epr /= np.std(discounted_epr)
 
     epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
     grad = policy_backward(eph, epdlogp)
+    # for k in model: 
+    #   print(grad_buffer[k].shape)
+    #   print(grad[k].shape)
     for k in model: 
-      print(grad_buffer[k].shape)
-      print(grad[k].shape)
       grad_buffer[k] += grad[k] # accumulate grad over batch
 
     # perform rmsprop parameter update every batch_size episodes
