@@ -15,7 +15,7 @@ render = False
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('change1_save.p', 'rb'))
+  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
   # - - - - - -
@@ -24,8 +24,11 @@ else:
   model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
   model['W2'] = np.random.randn(H) / np.sqrt(H)
   
+    # - - - - - -
+  """ CHANGE 4(?) - sgd instead of this rmsprop thing"""
+  # - - - - - -
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
-rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
+# rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
 def sigmoid(x): 
   return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
@@ -95,7 +98,7 @@ env = gym.make("Pong-v0")#, render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 xs,hs,dlogps,drs = [],[],[],[]
-running_reward = None
+running_mean = None
 reward_sum = 0
 episode_number = 0
 
@@ -153,17 +156,23 @@ while True:
       grad_buffer[k] += grad[k] # accumulate grad over batch
 
     # perform rmsprop parameter update every batch_size episodes
+    # if episode_number % batch_size == 0:
+    #   for k,v in model.items():
+    #     g = grad_buffer[k] # gradient
+    #     rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
+    #     model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
+    #     grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
+      
     if episode_number % batch_size == 0:
-      for k,v in model.items():
-        g = grad_buffer[k] # gradient
-        rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
-        model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
-        grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
+          print("update")
+          for k, v in model.items():
+              model[k] += learning_rate * grad_buffer[k] # update the parameters
+              grad_buffer[k] = np.zeros_like(v) # reset the gradients
 
     # boring book-keeping
-    running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
-    print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_reward) )
-    if episode_number % 100 == 0: pickle.dump(model, open('change1_save.p', 'wb'))
+    running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
+    print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
+    if episode_number % 100 == 0: pickle.dump(model, open('save.p', 'wb'))
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
