@@ -11,6 +11,8 @@ change backward and forward passes???
 
 DO TETRISA TEZ INFO - dodac na koncu forward pass jakiegos softmaxa czy cos XD
 jak ja chcialem niby bez tego to zrobic w ogole
+
+refactor that later!! functions etc
 """
 
 # hyperparameters
@@ -132,9 +134,12 @@ while True:
   prev_x = cur_x
 
   # 3 actions now! up/down or stay in place
-  NOOP = 0
-  RIGHT = 2
-  LEFT = 3
+  # actions = {
+  #   0: 0, # noop
+  #   1: 2, # right
+  #   2: 3, # left
+  # }
+  NOOP, RIGHT, LEFT = 0, 2, 3
 
   # forward the policy network and sample an action from the returned probability
   aprob, h = policy_forward(x)
