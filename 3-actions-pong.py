@@ -44,9 +44,11 @@ def sigmoid(x):
   return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
 
 def softmax(x):
+  # x - list of len 3
   """Compute softmax values for each sets of scores in x."""
-  e_x = np.exp(x - np.max(x))
-  return e_x / e_x.sum()
+  # e_x = np.exp(x - np.max(x))
+  # return e_x / e_x.sum()
+  return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
@@ -74,39 +76,38 @@ def policy_forward(x):
   # - - - - - -
   """ CHANGE 2 - @ NOTATION """
   # - - - - - -
-
-  # matmul docs, applies below: 
-  # If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions.
-  # After matrix multiplication the prepended 1 is removed.
-  h = x @ model['W1'] # (6400,) @ (6400, 200) ---> (1, 6400) @ (6400, 200) ---> (1, 200) ---> (200,) 
-  # tested - ok
-
-  h[h<0] = 0 # ReLU nonlinearity
-
-  # matmul docs, both apply below:
+  # matmul docs:
   # If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions.
   # After matrix multiplication the prepended 1 is removed.
   # If the second argument is 1-D, it is promoted to a matrix by appending a 1 to its dimensions.
   # After matrix multiplication the appended 1 is removed.
-  logits = h @ model['W2'] # (200,) @ (200,) ---> (1, 200) @ (200, 1) ---> (1, 1) ---> (), scalar
+
+  h = x @ model['W1'] # (6400,) @ (6400, 300) ---> (1, 6400) @ (6400, 300) ---> (1, 300) ---> (300,) 
   # tested - ok
 
-  p = sigmoid(logits)
-  return p, h # return probability of taking action 2, and hidden state
+  h[h<0] = 0 # ReLU nonlinearity
+  logits = h @ model['W2'] # (300,) @ (300, 3) ---> (1, 300) @ (300, 3) ---> (1, 3) ---> (3,)
+  # tested - ok
+
+  # p = sigmoid(logits)
+  p = softmax(logits)
+  return p, h # return probability of taking each of the 3 actions and the hidden states
 
 def policy_backward(eph, epdlogp):
     # - - - - - -
-  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model """
+  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model + shapes like in the notebook """
   # - - - - - -
   """ backward pass. (eph is array of intermediate hidden states) """
-  dW2 = (eph.T @ epdlogp).ravel() #dW2 = np.dot(eph.T, epdlogp).ravel()
-  # print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
+  dW2 = eph.T @ epdlogp 
+  # dW2 = np.dot(eph.T, epdlogp).ravel()
+  print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
   # print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
-  dh = np.outer(epdlogp, model["W2"]) #dh = epdlogp @ model["W2"].T #dh = np.outer(epdlogp, model['W2'])
-  # print("dh, epdlogp, modelW2", dh.shape, epdlogp.shape, model['W2'].shape)
+  dh = epdlogp @ model["W2"].T 
+  # dh = np.outer(epdlogp, model['W2'])
+  print("dh, epdlogp, modelW2.T", dh.shape, epdlogp.shape, model['W2'].T.shape)
   dh[eph <= 0] = 0 # backprop relu
   dW1 = epx.T @ dh #dW1 = np.dot(dh.T, epx)
-  # print("W1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
+  print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'W2':dW2}
 
 env = gym.make("Pong-v0")#, render_mode="human")
@@ -137,22 +138,26 @@ while True:
 
   # forward the policy network and sample an action from the returned probability
   aprob, h = policy_forward(x)
+  # print(aprob, aprob.sum())
   # action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
   # action = np.random.choice(range(len(aprob)), p=aprob)
-  wei = softmax(aprob)
-  action = random.choices(range(len(aprob)), weights=wei, k=1)
+  # wei = softmax(aprob)
+  action = random.choices(range(len(aprob)), weights=aprob, k=1)
+  # print(action)
   # print(aprob, action[0])
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
   # y = 1 if action == 2 else 0 # a "fake label"
+  # cross entropy loss derivative
   y = np.zeros_like(aprob)
   y[action] = 1
-  # gemini stuff here (?)
 
   # dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
-  dlogps.append(aprob - y) # na odwrot niz y-a + softmax jednak? i backprop potem
+  dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
+  # dlogps shape - list of 1234 or so elements
+  # aprob shape - 3
 
   # step the environment and get new measurements
   if action[0] == 0: a = NOOP
@@ -180,7 +185,9 @@ while True:
     # compute the discounted reward backwards through time
     discounted_epr = discount_rewards(epr)
 
+    print("PG magic:", epdlogp.shape, discounted_epr.shape, "\n")
     epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
+    print("after PG magic:", epdlogp.shape, "\n")
     grad = policy_backward(eph, epdlogp)
     # for k in model: 
     #   print(grad_buffer[k].shape)

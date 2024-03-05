@@ -22,7 +22,7 @@ else:
   """ CHANGE 1 - H,D TO D,H"""
   # - - - - - -
   model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
-  model['W2'] = np.random.randn(H) / np.sqrt(H)
+  model['W2'] = np.random.randn(H,1) / np.sqrt(H)
   
     # - - - - - -
   """ CHANGE 4(?) - sgd instead of this rmsprop thing - HAD TO BRING THAT BACK LOOL"""
@@ -81,17 +81,19 @@ def policy_forward(x):
 
 def policy_backward(eph, epdlogp):
     # - - - - - -
-  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model """
+  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model + shapes like in the notebook"""
   # - - - - - -
   """ backward pass. (eph is array of intermediate hidden states) """
-  dW2 = (eph.T @ epdlogp).ravel() #dW2 = np.dot(eph.T, epdlogp).ravel()
-  # print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
-  # print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
-  dh = np.outer(epdlogp, model["W2"]) #dh = epdlogp @ model["W2"].T #dh = np.outer(epdlogp, model['W2'])
-  # print("dh, epdlogp, modelW2", dh.shape, epdlogp.shape, model['W2'].shape)
+  dW2 = eph.T @ epdlogp  
+  # dW2 = np.dot(eph.T, epdlogp).ravel()
+  print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
+  print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
+  # dh = np.outer(epdlogp, model["W2"]) 
+  dh = epdlogp @ model["W2"].T
+  print("dh, epdlogp, modelW2.T", dh.shape, epdlogp.shape, model['W2'].T.shape)
   dh[eph <= 0] = 0 # backprop relu
   dW1 = epx.T @ dh #dW1 = np.dot(dh.T, epx)
-  # print("W1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
+  print("W1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'W2':dW2}
 
 env = gym.make("Pong-v0")#, render_mode="human")
