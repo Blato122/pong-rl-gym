@@ -2,6 +2,7 @@
 import numpy as np
 import pickle
 import gymnasium as gym
+import random
 
 """
 change W2 - now (H,3)
@@ -17,8 +18,8 @@ H = 300 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
-# decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
+resume = False # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -34,13 +35,18 @@ else:
   model['W2'] = np.random.randn(H,3) / np.sqrt(H)
   
   # - - - - - -
-  """ CHANGE 4(?) - sgd instead of this rmsprop thing"""
+  """ CHANGE 4(?) - sgd instead of this rmsprop thing - NAAH"""
   # - - - - - -
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
-# rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
+rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
 def sigmoid(x): 
   return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
+
+def softmax(x):
+  """Compute softmax values for each sets of scores in x."""
+  e_x = np.exp(x - np.max(x))
+  return e_x / e_x.sum()
 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
@@ -131,21 +137,29 @@ while True:
 
   # forward the policy network and sample an action from the returned probability
   aprob, h = policy_forward(x)
-  action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
-  action = np.random.choice(range(len(costam)), p=aprob)
-
-  y = 
-  y[action] = 1
-  # gemini stuff here (?)
+  # action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
+  # action = np.random.choice(range(len(aprob)), p=aprob)
+  wei = softmax(aprob)
+  action = random.choices(range(len(aprob)), weights=wei, k=1)
+  # print(aprob, action[0])
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
-  y = 1 if action == 2 else 0 # a "fake label"
-  dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+  # y = 1 if action == 2 else 0 # a "fake label"
+  y = np.zeros_like(aprob)
+  y[action] = 1
+  # gemini stuff here (?)
+
+  # dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+  dlogps.append(aprob - y) # na odwrot niz y-a + softmax jednak? i backprop potem
 
   # step the environment and get new measurements
-  observation, reward, done, _, _ = env.step(action)
+  if action[0] == 0: a = NOOP
+  elif action[0] == 1: a = RIGHT
+  elif action[0] == 2: a = LEFT
+
+  observation, reward, done, _, _ = env.step(a)
   reward_sum += reward
 
   drs.append(reward) # record reward (has to be done after we call step() to get reward for previous action)
@@ -175,18 +189,18 @@ while True:
       grad_buffer[k] += grad[k] # accumulate grad over batch
 
     # perform rmsprop parameter update every batch_size episodes
-    # if episode_number % batch_size == 0:
-    #   for k,v in model.items():
-    #     g = grad_buffer[k] # gradient
-    #     rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
-    #     model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
-    #     grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
-      
     if episode_number % batch_size == 0:
-          print("update")
-          for k, v in model.items():
-              model[k] += learning_rate * grad_buffer[k] # update the parameters
-              grad_buffer[k] = np.zeros_like(v) # reset the gradients
+      for k,v in model.items():
+        g = grad_buffer[k] # gradient
+        rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
+        model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
+        grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
+      
+    # if episode_number % batch_size == 0:
+    #       print("update")
+    #       for k, v in model.items():
+    #           model[k] += learning_rate * grad_buffer[k] # update the parameters
+    #           grad_buffer[k] = np.zeros_like(v) # reset the gradients
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01

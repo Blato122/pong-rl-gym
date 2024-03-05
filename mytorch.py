@@ -1,0 +1,2 @@
+class Sequential:
+    pass
