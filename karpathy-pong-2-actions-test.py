@@ -2,9 +2,10 @@
 import numpy as np
 import pickle
 import gymnasium as gym
+import random
 
 # hyperparameters
-H = 300 # number of hidden layer neurons
+H = 200 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
@@ -125,18 +126,31 @@ while True:
   x = cur_x - prev_x if prev_x is not None else np.zeros(D)
   prev_x = cur_x
 
+  RIGHT, LEFT = 2, 3
+
   # forward the policy network and sample an action from the returned probability
   aprob, h = policy_forward(x)
-  action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
+  # action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
+  action = random.choices(range(len(aprob)), weights=aprob, k=1)
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
-  y = 1 if action == 2 else 0 # a "fake label"
-  dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+
+  # y = 1 if action == 2 else 0 # a "fake label"
+  # cross entropy loss derivative
+  y = np.zeros_like(aprob)
+  y[action] = 1
+
+  # dlogps.append(aprob - y) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+  # also try y - aprob if that doesnt work XDDDDDDDDDDDDDDDDDD D D DD
+  dlogps.append(y - aprob) # dlaczego ludzie uzywaja raz tego, a raz tego... omg wtf
 
   # step the environment and get new measurements
-  observation, reward, done, _, _ = env.step(action)
+  if action[0] == 0: a = RIGHT
+  elif action[0] == 1: a = LEFT
+
+  observation, reward, done, _, _ = env.step(a)
   reward_sum += reward
 
   drs.append(reward) # record reward (has to be done after we call step() to get reward for previous action)

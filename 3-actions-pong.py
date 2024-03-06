@@ -16,12 +16,12 @@ refactor that later!! functions etc
 """
 
 # hyperparameters
-H = 300 # number of hidden layer neurons
+H = 200 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = False # resume from previous checkpoint?
+resume = True # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -159,8 +159,8 @@ while True:
   y = np.zeros_like(aprob)
   y[action] = 1
 
-  # dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
-  dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
+  dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+  # dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
   # dlogps shape - list of 1234 or so elements
   # aprob shape - 3
 
