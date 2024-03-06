@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 import gymnasium as gym
 import random
+import matplotlib as plt
 
 """
 change W2 - now (H,3)
@@ -17,11 +18,12 @@ refactor that later!! functions etc
 
 # hyperparameters
 H = 200 # number of hidden layer neurons
+H2 = 150
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+resume = False # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -34,7 +36,8 @@ else:
   """ CHANGE 1 - H,D TO D,H"""
   # - - - - - -
   model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
-  model['W2'] = np.random.randn(H,3) / np.sqrt(H)
+  model['Wa'] = np.random.randn(H,H2) / np.sqrt(H)
+  model['W2'] = np.random.randn(H2,3) / np.sqrt(H)
   
   # - - - - - -
   """ CHANGE 4(?) - sgd instead of this rmsprop thing - NAAH"""
@@ -84,38 +87,39 @@ def policy_forward(x):
   # If the second argument is 1-D, it is promoted to a matrix by appending a 1 to its dimensions.
   # After matrix multiplication the appended 1 is removed.
 
-  h = x @ model['W1'] # (6400,) @ (6400, 300) ---> (1, 6400) @ (6400, 300) ---> (1, 300) ---> (300,) 
-  # tested - ok
-
+  h = x @ model['W1'] # (6400,) @ (6400, 200) ---> (1, 6400) @ (6400, 200) ---> (1, 200) ---> (200,) 
   h[h<0] = 0 # ReLU nonlinearity
-  logits = h @ model['W2'] # (300,) @ (300, 3) ---> (1, 300) @ (300, 3) ---> (1, 3) ---> (3,)
-  # tested - ok
-
-  # p = sigmoid(logits)
+  h2 = h @ model['Wa'] # (200,) @ (200, 100) ---> (1, 200) @ (200, 100) ---> (1, 100) -> (100,)
+  h2[h2<0] = 0 # ReLU nonlinearity
+  logits = h2 @ model['W2'] # (100,) @ (100, 3) ---> (1, 100) @ (100, 3) ---> (1, 3) ---> (3,)
   p = softmax(logits)
-  return p, h # return probability of taking each of the 3 actions and the hidden states
+  return p, h, h2 # return probability of taking each of the 3 actions and the hidden states
 
-def policy_backward(eph, epdlogp):
+def policy_backward(eph, eph2, epdlogp):
     # - - - - - -
   """ CHANGE 2 - SHAPE COMPATIBLE WITH the model + shapes like in the notebook """
   # - - - - - -
   """ backward pass. (eph is array of intermediate hidden states) """
-  dW2 = eph.T @ epdlogp 
+  dW2 = eph2.T @ epdlogp # (100, 1234) @ (1234, 3) ---> (100, 3)
+  dh2 = epdlogp @ model["W2"].T # (1234, 3) @ (3, 100) ---> (1234, 100)
+  dh2[eph2 <= 0] = 0 # dh2: (1234, 100), eph2: (1234, 100), OK
+  dWa = eph.T @ dh2 # (200, 1234) @ (1234, 100) ---> (200, 100)       umm more or less, shapes are ok but idk
   # dW2 = np.dot(eph.T, epdlogp).ravel()
-  print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
+  # print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
   # print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
-  dh = epdlogp @ model["W2"].T 
+  dh = dh2 @ model["Wa"].T # (1234, 100) @ (100, 200) ---> (1234, 200)     shapes ok but idk
   # dh = np.outer(epdlogp, model['W2'])
-  print("dh, epdlogp, modelW2.T", dh.shape, epdlogp.shape, model['W2'].T.shape)
-  dh[eph <= 0] = 0 # backprop relu
-  dW1 = epx.T @ dh #dW1 = np.dot(dh.T, epx)
-  print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
-  return {'W1':dW1, 'W2':dW2}
+  # print("dh, epdlogp, modelW2.T", dh.shape, epdlogp.shape, model['W2'].T.shape)
+  dh[eph <= 0] = 0 # dh: (1234, 200), eph: (1234, 200), OK
+  dW1 = epx.T @ dh # (6400, 1234) @ (1234, 200) ---> (6400, 200)
+  #dW1 = np.dot(dh.T, epx)
+  # print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
+  return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
 
 env = gym.make("Pong-v0")#, render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
-xs,hs,dlogps,drs = [],[],[],[]
+xs,hs,h2s,dlogps,drs = [],[],[],[],[]
 running_mean = None
 reward_sum = 0
 episode_number = 0
@@ -134,19 +138,12 @@ while True:
   prev_x = cur_x
 
   # 3 actions now! up/down or stay in place
-  # actions = {
-  #   0: 0, # noop
-  #   1: 2, # right
-  #   2: 3, # left
-  # }
   NOOP, RIGHT, LEFT = 0, 2, 3
 
   # forward the policy network and sample an action from the returned probability
-  aprob, h = policy_forward(x)
+  aprob, h, h2 = policy_forward(x)
   # print(aprob, aprob.sum())
-  # action = 2 if np.random.uniform() < aprob else 3 # roll the dice!
   # action = np.random.choice(range(len(aprob)), p=aprob)
-  # wei = softmax(aprob)
   action = random.choices(range(len(aprob)), weights=aprob, k=1)
   # print(action)
   # print(aprob, action[0])
@@ -154,15 +151,41 @@ while True:
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
+  h2s.append(h2)
   # y = 1 if action == 2 else 0 # a "fake label"
   # cross entropy loss derivative
   y = np.zeros_like(aprob)
   y[action] = 1
 
+  # changed += to -= when updating the gradient!!!
   dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
   # dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
   # dlogps shape - list of 1234 or so elements
   # aprob shape - 3
+
+  """
+  what is even the gradient that we calculate
+  a function or a value?
+  """
+
+  """
+  how does that grad work?
+  why y-aprob?
+  i mean, how does that encourage/discourage anything?
+  
+  
+  think that through tomorrow
+  AND WRITE EVERYTHING DOWN!!!
+  
+  i think that this program is ok, however the stagnation after ~3k episodes in concerning..."""
+
+  """
+  we choose an action
+  don't know whether it's good or bad yet
+  we calculate the gradient (i.e. direction of the fastest ascent) of the cross entropy loss
+  after getting feedback on whether the action was good or not, we modulate the gradient - multiply by -1 if it was bad and by 1 if it was good
+  we adjust the parameters so that the cross entropy loss is now lower <=> likelihood of taking the action is higher
+  """
 
   # step the environment and get new measurements
   if action[0] == 0: a = NOOP
@@ -183,9 +206,10 @@ while True:
     # stack together all inputs, hidden states, action gradients, and rewards for this episode
     epx = np.vstack(xs)
     eph = np.vstack(hs)
+    eph2 = np.stack(h2s)
     epdlogp = np.vstack(dlogps)
     epr = np.vstack(drs)
-    xs,hs,dlogps,drs = [],[],[],[] # reset array memory
+    xs,hs,h2s,dlogps,drs = [],[],[],[],[] # reset array memory
 
     # compute the discounted reward backwards through time
     discounted_epr = discount_rewards(epr)
@@ -193,7 +217,7 @@ while True:
     print("PG magic:", epdlogp.shape, discounted_epr.shape, "\n")
     epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
     print("after PG magic:", epdlogp.shape, "\n")
-    grad = policy_backward(eph, epdlogp)
+    grad = policy_backward(eph, eph2, epdlogp)
     # for k in model: 
     #   print(grad_buffer[k].shape)
     #   print(grad[k].shape)
@@ -205,6 +229,9 @@ while True:
       for k,v in model.items():
         g = grad_buffer[k] # gradient
         rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
+        # move in the gradient direction (not negative gradient)
+        # so the cross entropy loss needs to be negative
+        # so that instead of minimizing the loss ()
         model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
         grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
       
