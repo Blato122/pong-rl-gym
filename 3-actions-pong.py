@@ -3,16 +3,9 @@ import numpy as np
 import pickle
 import gymnasium as gym
 import random
-import matplotlib as plt
+from matplotlib import pyplot as plt
 
 """
-change W2 - now (H,3)
-change 1st backprop step
-change backward and forward passes???
-
-DO TETRISA TEZ INFO - dodac na koncu forward pass jakiegos softmaxa czy cos XD
-jak ja chcialem niby bez tego to zrobic w ogole
-
 refactor that later!! functions etc
 """
 
@@ -123,6 +116,8 @@ xs,hs,h2s,dlogps,drs = [],[],[],[],[]
 running_mean = None
 reward_sum = 0
 episode_number = 0
+
+plot_running_rewards = []
 
 while True:
   if render: env.render()
@@ -244,7 +239,12 @@ while True:
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
     print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
-    if episode_number % 100 == 0: pickle.dump(model, open('3save.p', 'wb'))
+    plot_running_rewards.append(running_mean)
+    if episode_number % 100 == 0: 
+      plt.plot(range(episode_number), plot_running_rewards)
+      plt.savefig('3plot.png')
+      pickle.dump(model, open('3save.p', 'wb'))
+    
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
