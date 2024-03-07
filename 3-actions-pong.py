@@ -10,8 +10,8 @@ refactor that later!! functions etc
 """
 
 # hyperparameters
-H = 200 # number of hidden layer neurons
-H2 = 150
+H = 100 # number of hidden layer neurons
+H2 = 50
 batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
@@ -152,6 +152,7 @@ while True:
   y = np.zeros_like(aprob)
   y[action] = 1
 
+  # https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
   # changed += to -= when updating the gradient!!!
   dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
   # dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
@@ -241,6 +242,11 @@ while True:
     print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
     plot_running_rewards.append(running_mean)
     if episode_number % 100 == 0: 
+      # maybe some cleaner way?
+      # TO NADPISUJE TEN SAM WYKRES CALY CZAS XDDDD
+      # LEPIEJ TO ZROBIC DUZO
+      plt.xlabel("Episode number")
+      plt.ylabel("Running reward")
       plt.plot(range(episode_number), plot_running_rewards)
       plt.savefig('3plot.png')
       pickle.dump(model, open('3save.p', 'wb'))
@@ -248,3 +254,8 @@ while True:
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
+
+    """
+    useful:
+    https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
+    """
