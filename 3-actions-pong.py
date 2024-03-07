@@ -17,7 +17,7 @@ learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
-render = False
+render = True
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
@@ -109,7 +109,7 @@ def policy_backward(eph, eph2, epdlogp):
   # print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
 
-env = gym.make("Pong-v0")#, render_mode="human")
+env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 xs,hs,h2s,dlogps,drs = [],[],[],[],[]
