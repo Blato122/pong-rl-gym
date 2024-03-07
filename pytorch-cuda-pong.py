@@ -24,6 +24,11 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 torch.manual_seed(42)
 
+"""
+lr to 1e-3
+crop photo better!!!
+"""
+
 # hyperparameters
 N_IN = 80 * 80
 N_OUT = 3
@@ -32,7 +37,7 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+resume = False # resume from previous checkpoint?
 render = False
 
 # model = nn.Sequential(
@@ -45,6 +50,7 @@ render = False
 
 class Policy(nn.Module):
     def __init__(self):
+        super().__init__()
         self.lin1 = nn.Linear(N_IN, N_HIDDEN)
         self.lin2 = nn.Linear(N_HIDDEN, N_OUT)
         # dropout? or sth
@@ -72,8 +78,8 @@ def prepro(I):
   I = I[::2,::2,0] # downsample by factor of 2
   I[I == 144] = 0 # erase background (background type 1)
   I[I == 109] = 0 # erase background (background type 2)
-  I[I != 0] = 255 # everything else (paddles, ball) just set to 1
-  return I.astype(np.float32).ravel()
+  I[I != 0] = 1 # everything else (paddles, ball) just set to 1
+  return torch.tensor(I.astype(np.float32).ravel()) # CLEANER!!!!!!!!!!!!!!!!!!!
 
 """
 add eps to discount rewards division by std!!!
@@ -82,29 +88,35 @@ add eps to discount rewards division by std!!!
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
   print("rewards shape:", r.shape)
-  discounted_r = np.zeros_like(r)
+  discounted_r = torch.zeros_like(r)
   running_add = 0
   for t in reversed(range(r.shape[0])):
     if r[t] != 0: running_add = 0 # reset the sum, since this was a game boundary (pong specific!)
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
-  discounted_r -= np.mean(discounted_r)
-  discounted_r /= np.std(discounted_r)
+  discounted_r -= torch.mean(discounted_r)
+  discounted_r /= torch.std(discounted_r)
   return discounted_r
 
 env = gym.make("Pong-v0")#, render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
-xs,hs,dlogps,drs = [],[],[],[]
 running_mean = None
+running_wins = None
 reward_sum = 0
 episode_number = 0
 
+fig, (ax1, ax2) = plt.subplots(1, 2)
+fig.suptitle(f'learning rate={learning_rate}, n_hidden={N_HIDDEN}')
+ax1.set_xlabel("Episode number")
+ax1.set_ylabel("Running reward average of 100 episodes")
+ax1.grid(True)
+ax2.set_xlabel("Episode number")
+ax2.set_ylabel("Running win average of 100 episodes")
+ax2.grid(True)
 
-plt.xlabel("Episode number")
-plt.ylabel("Running reward average of 100 episodes)")
-plt.grid(True)
 plot_running_rewards = []
+plot_running_wins = []
 
 while True:
   if render: env.render()
@@ -112,8 +124,9 @@ while True:
   # preprocess the observation, set input to network to be difference image (to capture motion)
   if len(observation) == 2: observation = observation[0]
   cur_x = prepro(observation)
-  x = cur_x - prev_x if prev_x is not None else np.zeros(N_IN)
+  x = cur_x - prev_x if prev_x is not None else torch.zeros(N_IN)
   prev_x = cur_x
+  x.to(device) # HUH???????????
 
   # 3 actions: up/down or stay in place
   NOOP, RIGHT, LEFT = 0, 2, 3
@@ -125,6 +138,7 @@ while True:
   # <=> action = m.sample()
   action = torch.multinomial(aprob, num_samples=1)
   model.log_probs.append(aprob[action].log())
+  action.to(device) # HUH???????
   # imo cleaner and more intuitive than the Categorical way
 
   # cross entropy loss derivative
@@ -163,6 +177,7 @@ while True:
     optimizer.zero_grad()
     policy_loss = -np.vstack(model.log_probs) * discounted_epr
     policy_loss = torch.tensor(policy_loss).sum() 
+    policy_loss.to(device)
     policy_loss.backward()
     optimizer.step()
 
@@ -172,12 +187,14 @@ while True:
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
+    running_wins = (reward_sum > 0)if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
     print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
     plot_running_rewards.append(running_mean)
     if episode_number % 100 == 0: 
-        plt.clf()
-        plt.plot(range(episode_number), plot_running_rewards)
-        plt.savefig('3torchplot.png')
+        fig.clear(keep_observers=True) # ??
+        ax1.plot(range(episode_number), plot_running_rewards)
+        ax2.plot(range(episode_number), plot_running_wins)
+        fig.savefig('3torchplot.png')
         torch.save(model, open('3torchsave.p', 'wb'))
     
     reward_sum = 0

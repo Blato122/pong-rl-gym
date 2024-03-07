@@ -1,0 +1,5 @@
+also track sum of wins (%) in the last 100 games!!! a cool idea I think!!!
+
+chyba nie ma sensu crop za piłką
+
+ale może 1 zamiast 255 w tle! łatwiejsze obliczenia może przecież, po co duże liczby...

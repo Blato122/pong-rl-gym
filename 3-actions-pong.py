@@ -16,13 +16,13 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = False # resume from previous checkpoint?
-render = False
+resume = True # resume from previous checkpoint?
+render = True
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('3save.p', 'rb'))
+  model = pickle.load(open('3save-13700-2_17.p', 'rb'))
 else:
   model = {}
   # - - - - - -
@@ -54,7 +54,7 @@ def prepro(I):
   I = I[::2,::2,0] # downsample by factor of 2
   I[I == 144] = 0 # erase background (background type 1)
   I[I == 109] = 0 # erase background (background type 2)
-  I[I != 0] = 255 # everything else (paddles, ball) just set to 1
+  I[I != 0] = 1 # everything else (paddles, ball) just set to 1
   return I.astype(np.float32).ravel()
 
 def discount_rewards(r):
@@ -109,7 +109,7 @@ def policy_backward(eph, eph2, epdlogp):
   # print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
 
-env = gym.make("Pong-v0")#, render_mode="human")
+env = gym.make("Pong-v0", render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 xs,hs,h2s,dlogps,drs = [],[],[],[],[]
