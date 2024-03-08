@@ -11,3 +11,14 @@ popr wykresy
 I KONIECZNIE ZROBIĆ OPIS DOKŁADNY SPOSOBU PYTORCH I OD ZERA!!! ŻEBY POTEM MÓC ZAWSZE TO PRZECZYTAĆ I OGARNIAĆ (WIĘCEJ OPISU NOTATNIK)
 
 a potem rl dalej, wykłady, tetris, dqn może, jakieś auta...
+
+
+
+
+
+
+
+>ODRZUCONE:
+signal przy render już niepotrzebny
+ion też chyba nie
+zapisywanie pod inną nazwą też nie, bo przecież podczas jednego treningu musi się nadpisywać

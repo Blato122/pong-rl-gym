@@ -4,7 +4,6 @@ import pickle
 import gymnasium as gym
 import random
 from matplotlib import pyplot as plt
-import os.path
 
 """
 refactor that later!! functions etc
@@ -17,8 +16,8 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-3 # CHANGED FROM 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
-render = True
+resume = False # resume from previous checkpoint?
+render = False
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
@@ -111,7 +110,7 @@ def policy_backward(eph, eph2, epdlogp):
   return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
 
 env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="rgb_array")
-# env.metadata["render_fps"] = 600
+# env.metadata["render_fps"] = 60
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 xs,hs,h2s,dlogps,drs = [],[],[],[],[]
@@ -120,32 +119,22 @@ running_wins = None
 reward_sum = 0
 episode_number = 0
 
-fig, (ax1, ax2) = plt.subplots(1, 2)
-fig.suptitle(f'learning rate={learning_rate}, n_hidden={H, H2}')
-ax1.set_xlabel("Episode number")
-ax1.set_ylabel("Running reward average of 100 episodes")
-ax1.grid(True)
-ax2.set_xlabel("Episode number")
-ax2.set_ylabel("Running win average of 100 episodes")
-ax2.grid(True)
-
 plot_running_rewards = []
 plot_running_wins = []
 img = None
+
+
 while True:
   if render: 
-    if not img:
+    if img is None:
       img = plt.imshow(env.render())
-    else:
+    elif plt.fignum_exists(1): # sys exit if doesnt exist?
       img.set_data(env.render())
     plt.pause(0.001)
+
   # preprocess the observation, set input to network to be difference image
-  # print(len(observation))
-  # print(observation, observation[0].shape, len(observation[0]))
   if len(observation) == 2: observation = observation[0]
-  # print(observation.shape)
   cur_x = prepro(observation)
-  # print(cur_x.shape)
   x = cur_x - prev_x if prev_x is not None else np.zeros(D)
   prev_x = cur_x
 
@@ -154,17 +143,14 @@ while True:
 
   # forward the policy network and sample an action from the returned probability
   aprob, h, h2 = policy_forward(x)
-  # print(aprob, aprob.sum())
   # action = np.random.choice(range(len(aprob)), p=aprob)
   action = random.choices(range(len(aprob)), weights=aprob, k=1)
-  # print(action)
-  # print(aprob, action[0])
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
   h2s.append(h2)
-  # y = 1 if action == 2 else 0 # a "fake label"
+
   # cross entropy loss derivative
   y = np.zeros_like(aprob)
   y[action] = 1
@@ -172,9 +158,7 @@ while True:
   # https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
   # changed += to -= when updating the gradient!!!
   dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
-  # dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
-  # dlogps shape - list of 1234 or so elements
-  # aprob shape - 3
+  # dlogps shape - list of 1234 or so elements, aprob shape - 3
 
   """
   what is even the gradient that we calculate
@@ -213,7 +197,7 @@ while True:
   if reward != 0: # Pong has either +1 or -1 reward exactly when game ends.
     print(('ep %d: game finished, reward: %f' % (episode_number, reward)) + ('' if reward == -1 else ' !!!!!!!!'))
     
-  if done: # an episode finished
+  if done: # an episode (game of 21) finished
     episode_number += 1
 
     # stack together all inputs, hidden states, action gradients, and rewards for this episode
@@ -261,21 +245,33 @@ while True:
     plot_running_rewards.append(running_mean)
     plot_running_wins.append(running_wins)
     if episode_number % 100 == 0: 
-      # maybe some cleaner way?
-      # TO NADPISUJE TEN SAM WYKRES CALY CZAS XDDDD
-      # LEPIEJ TO ZROBIC DUZO
-      # nie działa to
-      fig.clear(keep_observers=True) # ??
-      ax1.plot(range(episode_number), plot_running_rewards)
-      ax2.plot(range(episode_number), plot_running_wins)
-      
-      for i in range(10):
-        if not os.path.isfile('3plot_%f.png' % i):
-          fig.savefig('3plot.png')
+      # hmm maybe add eval mode?
+      if not render: # since render is basically eval mode, I don't want to create a training progress plot
+        fig, ax1 = plt.subplots(figsize=(8, 6))
 
-      for i in range(10):
-        if not os.path.isfile('3save_%f.p' % i):
-          pickle.dump(model, open('3save_%f.p' % i, 'wb'))
+        # Plot the line with normal scale on primary y-axis
+        p1, = ax1.plot(range(episode_number), plot_running_rewards, label='Normal Scale')
+
+        # Create a secondary y-axis for percentage data
+        ax2 = ax1.twinx()
+
+        # Plot the line with percentage on secondary y-axis (set limits from 0 to 100)
+        p2, = ax2.plot(range(episode_number), plot_running_wins, label='Percentage', color='red')
+        ax2.set_ylim(0, 100)  # Set limits for percentage axis
+
+        # Set labels and title
+        ax1.set_xlabel('Episode number')
+        ax1.set_ylabel('Running reward average over past 100 episodes')
+        ax2.set_ylabel('Percentage of wins over past 100 episodes')
+        plt.title(f'learning_rate={learning_rate}, n_hidden={H, H2}')
+
+        # Show legend
+        plt.legend(handles=[p1, p2])
+        # Adjust layout to avoid overlapping labels
+        plt.tight_layout()
+        fig.savefig('3plot.png')
+
+      pickle.dump(model, open('3save.p', 'wb'))
     
     reward_sum = 0
     observation = env.reset() # reset env
