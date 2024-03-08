@@ -1,8 +1,6 @@
 """ Trains an agent with (stochastic) Policy Gradients on Pong. Uses OpenAI Gym. """
-import numpy as np
-import pickle
+# import numpy as np
 import gymnasium as gym
-import random
 
 import torch
 import torch.nn as nn
@@ -47,6 +45,9 @@ render = False
 #   F.softmax()
 # )
 
+# in Policy? as tensors(prob naah, some cat instead of append)?
+log_probs = []
+rewards_pre_discount = []
 
 class Policy(nn.Module):
     def __init__(self):
@@ -54,9 +55,6 @@ class Policy(nn.Module):
         self.lin1 = nn.Linear(N_IN, N_HIDDEN)
         self.lin2 = nn.Linear(N_HIDDEN, N_OUT)
         # dropout? or sth
-        
-        self.log_probs = []
-        self.rewards_pre_discount = []
     
     def forward(self, x):
         x = self.lin1(x)
@@ -70,8 +68,6 @@ model = torch.load('3save-torch.pt') if resume else Policy()
 model.to(device)
 optimizer = optim.RMSprop(model.parameters(), lr=learning_rate)
 
-# remove numpy later! only pytorch maybe
-
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
   I = I[34:194] # crop
@@ -79,7 +75,7 @@ def prepro(I):
   I[I == 144] = 0 # erase background (background type 1)
   I[I == 109] = 0 # erase background (background type 2)
   I[I != 0] = 1 # everything else (paddles, ball) just set to 1
-  return torch.tensor(I.astype(np.float32).ravel()).to(device) # CLEANER!!!!!!!!!!!!!!!!!!!
+  return torch.tensor(I, dtype=torch.float32).ravel().to(device) # CLEANER!!!!!!!!!!!!!!!!!!!
 
 """
 add eps to discount rewards division by std!!!
@@ -88,14 +84,14 @@ add eps to discount rewards division by std!!!
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
   print("rewards shape:", r.shape)
-  discounted_r = torch.zeros_like(r)
+  discounted_r = torch.zeros_like(r).to(device)
   running_add = 0
   for t in reversed(range(r.shape[0])):
     if r[t] != 0: running_add = 0 # reset the sum, since this was a game boundary (pong specific!)
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
-  discounted_r -= torch.mean(discounted_r)
-  discounted_r /= torch.std(discounted_r)
+  discounted_r -= torch.mean(discounted_r).to(device)
+  discounted_r /= torch.std(discounted_r).to(device)
   return discounted_r
 
 env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="human")
@@ -115,7 +111,7 @@ while True:
   # preprocess the observation, set input to network to be difference image (to capture motion)
   if len(observation) == 2: observation = observation[0]
   cur_x = prepro(observation)
-  x = cur_x - prev_x if prev_x is not None else torch.zeros(N_IN)
+  x = cur_x - prev_x if prev_x is not None else torch.zeros(N_IN).to(device)
   prev_x = cur_x
   x.to(device) # HUH???????????
 
@@ -128,18 +124,9 @@ while True:
 #   action = random.choices(range(len(aprob)), weights=aprob, k=1)
   # <=> action = m.sample()
   action = torch.multinomial(aprob, num_samples=1)
-  model.log_probs.append(aprob[action].log())
+  log_probs.append(aprob[action].log())
   action.to(device) # HUH???????
   # imo cleaner and more intuitive than the Categorical way
-
-  # cross entropy loss derivative
-#   y = np.zeros_like(aprob)
-#   y[action] = 1
-
-#   dlogps.append(aprob - y) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
-  # dlogps.append(aprob - y) # + softmax jednak? i backprop potem (ale to już chyba jest backprop cross entropy)
-  # dlogps shape - list of 1234 or so elements
-  # aprob shape - 3
 
   # step the environment and get new measurements
   if action[0] == 0: a = NOOP
@@ -149,7 +136,7 @@ while True:
   observation, reward, done, _, _ = env.step(a)
   reward_sum += reward
 
-  model.rewards_pre_discount.append(reward) # record reward (has to be done after we call step() to get reward for previous action)
+  rewards_pre_discount.append(reward) # record reward (has to be done after we call step() to get reward for previous action)
   
   if reward != 0: # Pong has either +1 or -1 reward exactly when game ends.
     print(('ep %d: game finished, reward: %f' % (episode_number, reward)) + ('' if reward == -1 else ' !!!!!!!!'))
@@ -160,21 +147,23 @@ while True:
     # compute the discounted reward backwards through time
     # vstack?!?! ++ its different from the np version!
     #calc the shapes again to see why its necessary
-    discounted_epr = discount_rewards(np.vstack(model.rewards_pre_discount))
+    # discounted_epr = discount_rewards(torch.tensor(np.vstack(rewards_pre_discount)).to(device))
+    discounted_epr = discount_rewards(torch.tensor(rewards_pre_discount).unsqueeze(1).to(device))
 
     # print("PG magic:", epdlogp.shape, discounted_epr.shape, "\n")
     #epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
     
     optimizer.zero_grad()
-    policy_loss = -np.vstack(model.log_probs) * discounted_epr
-    policy_loss = torch.tensor(policy_loss).sum() 
+    # policy_loss = -np.vstack(model.log_probs) * discounted_epr
+    policy_loss = -torch.tensor(log_probs).unsqueeze(1).to(device) * discounted_epr
+    policy_loss = policy_loss.sum().to(device)
     policy_loss.to(device)
     policy_loss.backward()
     optimizer.step()
 
     # https://stackoverflow.com/questions/30561194/what-is-the-difference-between-del-a-and-a-when-i-want-to-empty-a-list-c
-    model.rewards_pre_discount = []
-    model.log_probs = []
+    rewards_pre_discount = []
+    log_probs = []
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
