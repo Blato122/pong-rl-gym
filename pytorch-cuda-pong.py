@@ -98,7 +98,7 @@ def discount_rewards(r):
   discounted_r /= torch.std(discounted_r)
   return discounted_r
 
-env = gym.make("Pong-v0")#, render_mode="human")
+env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="human")
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 running_mean = None
@@ -190,6 +190,7 @@ while True:
     running_wins = (reward_sum > 0)if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
     print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
     plot_running_rewards.append(running_mean)
+    plot_running_wins.append(running_wins)
     if episode_number % 100 == 0: 
         fig.clear(keep_observers=True) # ??
         ax1.plot(range(episode_number), plot_running_rewards)

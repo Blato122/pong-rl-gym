@@ -4,25 +4,26 @@ import pickle
 import gymnasium as gym
 import random
 from matplotlib import pyplot as plt
+import os.path
 
 """
 refactor that later!! functions etc
 """
 
 # hyperparameters
-H = 100 # number of hidden layer neurons
-H2 = 50
+H = 120 # number of hidden layer neurons
+H2 = 60
 batch_size = 10 # every how many episodes to do a param update?
-learning_rate = 1e-4
+learning_rate = 1e-3 # CHANGED FROM 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = False # resume from previous checkpoint?
+resume = True # resume from previous checkpoint?
 render = True
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('3save.p', 'rb'))
+  model = pickle.load(open('3save-1e-3-120-60-plus0_7-6700.p', 'rb'))
 else:
   model = {}
   # - - - - - -
@@ -109,19 +110,35 @@ def policy_backward(eph, eph2, epdlogp):
   # print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
   return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
 
-env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="human")
+env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="rgb_array")
+# env.metadata["render_fps"] = 600
 observation = env.reset()
 prev_x = None # used in computing the difference frame
 xs,hs,h2s,dlogps,drs = [],[],[],[],[]
 running_mean = None
+running_wins = None
 reward_sum = 0
 episode_number = 0
 
+fig, (ax1, ax2) = plt.subplots(1, 2)
+fig.suptitle(f'learning rate={learning_rate}, n_hidden={H, H2}')
+ax1.set_xlabel("Episode number")
+ax1.set_ylabel("Running reward average of 100 episodes")
+ax1.grid(True)
+ax2.set_xlabel("Episode number")
+ax2.set_ylabel("Running win average of 100 episodes")
+ax2.grid(True)
+
 plot_running_rewards = []
-
+plot_running_wins = []
+img = None
 while True:
-  if render: env.render()
-
+  if render: 
+    if not img:
+      img = plt.imshow(env.render())
+    else:
+      img.set_data(env.render())
+    plt.pause(0.001)
   # preprocess the observation, set input to network to be difference image
   # print(len(observation))
   # print(observation, observation[0].shape, len(observation[0]))
@@ -239,17 +256,26 @@ while True:
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
-    print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
+    running_wins = (reward_sum > 0)if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
+    print('resetting env. episode reward total was %f. running mean: %f. running wins: %f' % (reward_sum, running_mean, running_wins) )
     plot_running_rewards.append(running_mean)
+    plot_running_wins.append(running_wins)
     if episode_number % 100 == 0: 
       # maybe some cleaner way?
       # TO NADPISUJE TEN SAM WYKRES CALY CZAS XDDDD
       # LEPIEJ TO ZROBIC DUZO
-      plt.xlabel("Episode number")
-      plt.ylabel("Running reward")
-      plt.plot(range(episode_number), plot_running_rewards)
-      plt.savefig('3plot.png')
-      pickle.dump(model, open('3save.p', 'wb'))
+      # nie działa to
+      fig.clear(keep_observers=True) # ??
+      ax1.plot(range(episode_number), plot_running_rewards)
+      ax2.plot(range(episode_number), plot_running_wins)
+      
+      for i in range(10):
+        if not os.path.isfile('3plot_%f.png' % i):
+          fig.savefig('3plot.png')
+
+      for i in range(10):
+        if not os.path.isfile('3save_%f.p' % i):
+          pickle.dump(model, open('3save_%f.p' % i, 'wb'))
     
     reward_sum = 0
     observation = env.reset() # reset env

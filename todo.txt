@@ -1,5 +1,13 @@
 also track sum of wins (%) in the last 100 games!!! a cool idea I think!!!
 
-chyba nie ma sensu crop za piłką
+chyba nie ma sensu crop za piłką - albo w sumie można spróbować...
 
 ale może 1 zamiast 255 w tle! łatwiejsze obliczenia może przecież, po co duże liczby...
+
+pickle niech sprawdza przy zapisie czy plik istnieje! jak tak, to niech nie nadpisuje, tylko stworzy nowy z nową nazwą!!!
+
+popr wykresy
+
+I KONIECZNIE ZROBIĆ OPIS DOKŁADNY SPOSOBU PYTORCH I OD ZERA!!! ŻEBY POTEM MÓC ZAWSZE TO PRZECZYTAĆ I OGARNIAĆ (WIĘCEJ OPISU NOTATNIK)
+
+a potem rl dalej, wykłady, tetris, dqn może, jakieś auta...
