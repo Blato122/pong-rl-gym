@@ -79,7 +79,7 @@ def prepro(I):
   I[I == 144] = 0 # erase background (background type 1)
   I[I == 109] = 0 # erase background (background type 2)
   I[I != 0] = 1 # everything else (paddles, ball) just set to 1
-  return torch.tensor(I.astype(np.float32).ravel()) # CLEANER!!!!!!!!!!!!!!!!!!!
+  return torch.tensor(I.astype(np.float32).ravel()).to(device) # CLEANER!!!!!!!!!!!!!!!!!!!
 
 """
 add eps to discount rewards division by std!!!
