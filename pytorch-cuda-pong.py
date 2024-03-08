@@ -106,15 +106,6 @@ running_wins = None
 reward_sum = 0
 episode_number = 0
 
-fig, (ax1, ax2) = plt.subplots(1, 2)
-fig.suptitle(f'learning rate={learning_rate}, n_hidden={N_HIDDEN}')
-ax1.set_xlabel("Episode number")
-ax1.set_ylabel("Running reward average of 100 episodes")
-ax1.grid(True)
-ax2.set_xlabel("Episode number")
-ax2.set_ylabel("Running win average of 100 episodes")
-ax2.grid(True)
-
 plot_running_rewards = []
 plot_running_wins = []
 
@@ -188,14 +179,11 @@ while True:
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
     running_wins = (reward_sum > 0)if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
-    print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_mean) )
+    print('resetting env. episode reward total was %f. running mean: %f. running wins: %f' % (reward_sum, running_mean, running_wins) )
     plot_running_rewards.append(running_mean)
     plot_running_wins.append(running_wins)
     if episode_number % 100 == 0: 
-        fig.clear(keep_observers=True) # ??
-        ax1.plot(range(episode_number), plot_running_rewards)
-        ax2.plot(range(episode_number), plot_running_wins)
-        fig.savefig('3torchplot.png')
+        # fig like in 3actions
         torch.save(model, open('3torchsave.p', 'wb'))
     
     reward_sum = 0

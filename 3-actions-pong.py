@@ -16,7 +16,7 @@ batch_size = 10 # every how many episodes to do a param update?
 learning_rate = 1e-3 # CHANGED FROM 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = False # resume from previous checkpoint?
+resume = True # resume from previous checkpoint?
 render = False
 
 # model initialization
@@ -32,9 +32,9 @@ else:
   model['Wa'] = np.random.randn(H,H2) / np.sqrt(H)
   model['W2'] = np.random.randn(H2,3) / np.sqrt(H)
   
-  # - - - - - -
-  """ CHANGE 4(?) - sgd instead of this rmsprop thing - NAAH"""
-  # - - - - - -
+# - - - - - -
+""" CHANGE 4(?) - sgd instead of this rmsprop thing - NAAH"""
+# - - - - - -
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
@@ -240,23 +240,23 @@ while True:
 
     # boring book-keeping
     running_mean = reward_sum if running_mean is None else running_mean * 0.99 + reward_sum * 0.01
-    running_wins = (reward_sum > 0)if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
-    print('resetting env. episode reward total was %f. running mean: %f. running wins: %f' % (reward_sum, running_mean, running_wins) )
+    running_wins = (reward_sum > 0) if running_wins is None else running_wins * 0.99 + (reward_sum > 0) * 0.01
+    print('resetting env. episode reward total was %f. running mean: %f. running wins: %f' % (reward_sum, running_mean, running_wins * 100) )
     plot_running_rewards.append(running_mean)
-    plot_running_wins.append(running_wins)
+    plot_running_wins.append(running_wins * 100)
     if episode_number % 100 == 0: 
       # hmm maybe add eval mode?
       if not render: # since render is basically eval mode, I don't want to create a training progress plot
         fig, ax1 = plt.subplots(figsize=(8, 6))
 
         # Plot the line with normal scale on primary y-axis
-        p1, = ax1.plot(range(episode_number), plot_running_rewards, label='Normal Scale')
+        p1, = ax1.plot(range(episode_number), plot_running_rewards, label='Running reward average')
 
         # Create a secondary y-axis for percentage data
         ax2 = ax1.twinx()
 
         # Plot the line with percentage on secondary y-axis (set limits from 0 to 100)
-        p2, = ax2.plot(range(episode_number), plot_running_wins, label='Percentage', color='red')
+        p2, = ax2.plot(range(episode_number), plot_running_wins, label='Percentage of wins', color='red')
         ax2.set_ylim(0, 100)  # Set limits for percentage axis
 
         # Set labels and title
@@ -269,6 +269,7 @@ while True:
         plt.legend(handles=[p1, p2])
         # Adjust layout to avoid overlapping labels
         plt.tight_layout()
+        plt.grid()
         fig.savefig('3plot.png')
 
       pickle.dump(model, open('3save.p', 'wb'))
