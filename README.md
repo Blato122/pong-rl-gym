@@ -10,6 +10,7 @@ My goal was to add some more functionalities to his code in order to understand 
 * added a second hidden layer
   * modified the forward and backward pass
 * the program now creates and updates a plot of running average reward over the last 100 episodes
+* in render mode, the program now displays the game using matplotlib imshow function, allowing it to be rendered on WSL2 using XServer on Windows
 
 # x. Sources:
 1. Andrej Karpathy Pong policy gradient blog post -
