@@ -4,12 +4,12 @@
 This program trains a reinforcement learning agent to play a game of Pong using the policy gradient algorithm. It is based on an excellent article and a lecture by Andrej Karpathy. /insert links here - gist, blog, yt/
 My goal was to add some more functionalities to his code in order to understand the whole concept even better. The changes I introduced:
 * added third possible action (do nothing) besides moving up/down
-  * modified the output layer so that it consists of 3 neurons, instead of 1
-  * changed the activation function in the output layer from sigmoid to softmax
-  * modified the action sampling method (since now there are 3 probabilities instead of 1)
-  * modified the loss function so that it works with 3 actions (one-hot encoding)
+    * modified the output layer so that it consists of 3 neurons, instead of 1
+    * changed the activation function in the output layer from sigmoid to softmax
+    * modified the action sampling method (since now there are 3 probabilities instead of 1)
+    * modified the loss function so that it works with 3 actions (one-hot encoding)
 * added a second hidden layer
-  * modified the forward and backward pass
+    * modified the forward and backward pass
 * messed with the numpy array shapes so that everything works again after these changes
 * now using the @ operator instead od np.dot()
 * the program now creates and updates plots of running average reward and running average wins over the last 100 episodes
@@ -34,21 +34,21 @@ loss function
 The flow:
 * set everything up and obtain the initial observation
 * enter the main loop
- * render the current frame
- * preprocess the observation (crop the unnecessary frame contents, downsample, set background to 0, set paddles and the ball to 1)
- * set the input to the neural network to be the difference of two last frames in order to capture motion
- * perform the forward pass and get the probabilities of performing each action
- * sample an action from the returned probabilities
- * compute the cross entropy loss derivative (??????????????????????????????????????????)
- * ?
- * perform the sampled action, get a new observation and the reward
- * if an episode has ended:
-  * discount the rewards (??? explain how it works)
-  * ?
-  * modulate the gradient with the advantage (the discounted rewards??)
-  * ?
-  * perform the rest of the backward pass
-  * update the parameters
+    * render the current frame
+    * preprocess the observation (crop the unnecessary frame contents, downsample, set background to 0, set paddles and the ball to 1)
+    * set the input to the neural network to be the difference of two last frames in order to capture motion
+    * perform the forward pass and get the probabilities of performing each action
+    * sample an action from the returned probabilities
+    * compute the cross entropy loss derivative (??????????????????????????????????????????)
+    * ?
+    * perform the sampled action, get a new observation and the reward
+    * if an episode has ended:
+        * discount the rewards (??? explain how it works)
+        * ?
+        * modulate the gradient with the advantage (the discounted rewards??)
+        * ?
+        * perform the rest of the backward pass
+        * update the parameters
 
 sign of parameter grad update
 
