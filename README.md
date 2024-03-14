@@ -10,7 +10,7 @@ My goal was to add some more functionalities to his code in order to understand 
   * modified the loss function so that it works with 3 actions (one-hot encoding)
 * added a second hidden layer
   * modified the forward and backward pass
-* the program now creates and updates a plot of running average reward over the last 100 episodes
+* the program now creates and updates plots of running average reward and running average wins over the last 100 episodes
 * in render mode, the program now displays the game using matplotlib imshow function, allowing it to be rendered on WSL2 using XServer on Windows
 
 ## 2. How does it work?
