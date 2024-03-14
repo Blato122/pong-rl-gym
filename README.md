@@ -25,10 +25,32 @@ The [action space](https://gymnasium.farama.org/environments/atari/pong/#actions
 
 The [observation space](https://gymnasium.farama.org/environments/atari/pong/#observations) is a numpy array of shape (210, 160, 3) - 210x160 px rgb (0-255) Pong frame.
 
-First, the program resets the environment to obtain the initial observation
+rewards, discounting
 
-prepro
-difference of frames
+encouraging an action
+
+loss function
+
+The flow:
+* set everything up and obtain the initial observation
+* enter the main loop
+ * render the current frame
+ * preprocess the observation (crop the unnecessary frame contents, downsample, set background to 0, set paddles and the ball to 1)
+ * set the input to the neural network to be the difference of two last frames in order to capture motion
+ * perform the forward pass and get the probabilities of performing each action
+ * sample an action from the returned probabilities
+ * compute the cross entropy loss derivative (??????????????????????????????????????????)
+ * ?
+ * perform the sampled action, get a new observation and the reward
+ * if an episode has ended:
+  * discount the rewards (??? explain how it works)
+  * ?
+  * modulate the gradient with the advantage (the discounted rewards??)
+  * ?
+  * perform the rest of the backward pass
+  * update the parameters
+
+sign of parameter grad update
 
 ## 3. Forward pass maths:
 
