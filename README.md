@@ -14,6 +14,7 @@ My goal was to add some more functionalities to his code in order to understand 
 * now using the @ operator instead od np.dot()
 * the program now creates and updates plots of running average reward and running average wins over the last 100 episodes
 * in render mode, the program now displays the game using matplotlib imshow() function, allowing it to be rendered on WSL2 using XServer on Windows
+* pytorchified the code and added CUDA support - check out this repo: lala
 
 ## 2. How does it work?
 
