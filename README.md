@@ -16,7 +16,7 @@ My goal was to add some more functionalities to his code in order to understand 
 * in render mode, the program now displays the game using matplotlib's imshow() function, allowing it to be rendered on WSL2 using XServer on Windows
 
 ## 2. How does it work?
-The program uses [gymnasium](https://gymnasium.farama.org/index.html) which provides many reinforcement learning environments, such as Atari Pongv0 in my case. There are 3 main environment functions:
+The program uses [gymnasium](https://gymnasium.farama.org/index.html) which provides many reinforcement learning environments, such as Atari Pong-v0 in this case. There are 3 main environment functions:
 * [step()](https://gymnasium.farama.org/api/env/#gymnasium.Env.step) - performs a single action provided by an agent. In this case, it moves the paddle up/down or does nothing.
 * [reset()](https://gymnasium.farama.org/api/env/#gymnasium.Env.reset) - resets the environment to an initial state - ball and paddles in the middle. Called in the very beginning and then after every episode (an episode is one game of 21, e.g. 21-18).
 * [render()](https://gymnasium.farama.org/api/env/#gymnasium.Env.render) - returns a single frame representing the current state of the environment. I'm using the "rgb_array" mode so that I can later display it using matplotlib's imshow() function. You might as well try the "human" mode, it didn't work on my WSL2.
