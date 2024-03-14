@@ -20,6 +20,6 @@ My goal was to add some more functionalities to his code in order to understand 
 ## 4. Backpropagation maths:
 
 ## x. Sources:
-1. Andrej Karpathy Pong policy gradient blog post -
-2. Andrej Karpathy Pong policy gradient lecture -
-3. Andrej Karpathy Pong policy gradient
+1. Andrej Karpathy Pong policy gradient blog post - https://karpathy.github.io/2016/05/31/rl/
+2. Andrej Karpathy Pong policy gradient lecture - https://www.youtube.com/watch?v=tqrcjHuNdmQ&t=1870s
+3. Andrej Karpathy Pong policy gradient gist - https://gist.github.com/karpathy/a4166c7fe253700972fcbc77e4ea32c5
