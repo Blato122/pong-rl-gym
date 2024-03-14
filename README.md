@@ -5,6 +5,7 @@ This program trains a reinforcement learning agent to play a game of Pong using 
 My goal was to add some more functionalities to his code in order to understand the whole concept even better. The changes I introduced:
 * added third possible action (do nothing) besides moving up/down
   * modified the output layer so that it consists of 3 neurons, instead of 1
+  * changed the activation function in the output layer from sigmoid to softmax
   * modified the action sampling method (since now there are 3 probabilities instead of 1)
   * modified the loss function so that it works with 3 actions (one-hot encoding)
 * added a second hidden layer
