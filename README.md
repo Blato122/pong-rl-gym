@@ -29,6 +29,7 @@ The [observation space](https://gymnasium.farama.org/environments/atari/pong/#ob
 change he to they/it?
 
 The game consists of episodes - games of 21. Each episode is made up of many points and each point is made up of tens or even hundreds of individual actions (up/down/stay). The ultimate goal is winning a game (an episode) with the hardcoded computer opponent. We can achieve that by teaching our agent how to score points. 
+
 After each point, the agent receives a reward that tells him how good his actions were. He gets a +1/-1 reward for the final move that led to winning/losing and a 0 reward for the rest of his actions. These rewards are then stored. After `batch_size` episodes, they get discounted. What that means, is that for each reward in a sequence, we assign a new reward, based on how far it is from the +1/-1 reward that led to scoring/losing a point. For example, if we set the `discount_factor` to 0.9 and the reward sequence is \[0, 0, 0, -1], we get \[-0.729 , -0.81, -0.9, -1] after discounting them (remember that each reward has an action associated with it - DOPISAĆ COŚ O TYM 1ST BACKPROP STEP BO MOŻE NIEJASNE TO JEST). 
 
 rewards, discounting
