@@ -9,7 +9,7 @@ My goal was to add some more functionalities to his code in order to understand 
     * modified the action sampling method (since now there are 3 probabilities instead of 1)
     * modified the loss function so that it works with 3 actions (one-hot encoding)
 * added a second hidden layer
-    * modified the forward and backward pass
+    * modified the forward and backward passes
 * messed with the numpy array shapes so that everything works again after these changes
 * now using the @ operator instead od np.dot()
 * learning rate changed from 1e-4 to 1e-3 (seems to have sped up the learning)
@@ -26,17 +26,19 @@ The [action space](https://gymnasium.farama.org/environments/atari/pong/#actions
 
 The [observation space](https://gymnasium.farama.org/environments/atari/pong/#observations) is a numpy array of shape (210, 160, 3) - 210x160 px rgb (0-255) Pong frame.
 
-change he to they/it?
+**change he to they/it?**
 
 The game consists of episodes - games of 21. Each episode is made up of many points and each point is made up of tens or even hundreds of individual actions (up/down/stay). The ultimate goal is winning a game (an episode) with the hardcoded computer opponent. We can achieve that by teaching our agent how to score points. 
 
-After each point, the agent receives a reward that tells him how good his actions were. He gets a +1/-1 reward for the final move that led to winning/losing and a 0 reward for the rest of his actions. These rewards are then stored. After `batch_size` episodes, they get discounted. What that means, is that for each reward in a sequence, we assign a new reward, based on how far it is from the +1/-1 reward that led to scoring/losing a point. For example, if we set the `discount_factor` to 0.9 and the reward sequence is \[0, 0, 0, -1], we get \[-0.729 , -0.81, -0.9, -1] after discounting them (remember that each reward has an action associated with it - DOPISAĆ COŚ O TYM 1ST BACKPROP STEP BO MOŻE NIEJASNE TO JEST). 
+After each point, the agent receives a reward that tells him how good his actions were. He gets a +1/-1 reward for the final move that led to winning/losing and a 0 reward for the rest of his actions. These rewards are then stored. After `batch_size` episodes, they get discounted. What that means, is that for each reward in a sequence, we assign a new reward, based on how far it is from the +1/-1 reward that led to scoring/losing a point. For example, if we set the `discount_factor` to 0.9 and the reward sequence is \[0, +1, 0, 0, 0, -1], we get \[+0.9, +1, -0.729 , -0.81, -0.9, -1] after discounting them (remember that each reward has an action associated with it -**DOPISAĆ COŚ O TYM 1ST BACKPROP STEP BO MOŻE NIEJASNE TO JEST**). We do that because it usually doesn't feel right to blame all the actions equally, because it is often the latest actions that cause the particular outcome (**damn wtf is that grammar lol**). Plus, we need to assign some reward to the actions that had a reward of 0 before because they certainly weren't neutral for the outcome. (**better sentence maybe as well)**. 
 
-rewards, discounting
+Okay, but what about the loss function, its gradient and the parameter updates? How do these rewards encourage the agent to make correct decisions? In each iteration of the algorithm, before performing an action and receiving a reward, we perform a forward pass. This forward pass gives us the probabilities of performing each of the 3 actions. We then sample an action from these probabilities and calculate the loss function - cross entropy loss. It tells us how **no it doesnt tell us now how good it was but after getting a reward!!!**
 
-encouraging an action
+**rewards, discounting**
 
-loss function
+**encouraging an action**
+
+**loss function**
 
 The flow:
 * set everything up and obtain the initial observation
@@ -46,14 +48,14 @@ The flow:
     * set the input to the neural network to be the difference of two last frames in order to capture motion
     * perform the forward pass and get the probabilities of performing each action
     * sample an action from the returned probabilities
-    * compute the cross entropy loss derivative (??????????????????????????????????????????)
-    * ?
+    * compute the cross entropy loss derivative **(??????????????????????????????????????????)**
+    * **?**
     * perform the sampled action, get a new observation and the reward
     * if an episode has ended:
-        * discount the rewards (??? explain how it works)
-        * ?
-        * modulate the gradient with the advantage (the discounted rewards??)
-        * ?
+        * discount the rewards **(??? explain how it works)**
+        * **?**
+        * modulate the gradient with the advantage **(the discounted rewards??)**
+        * **?**
         * perform the rest of the backward pass
         * update the parameters
 
@@ -73,3 +75,5 @@ sign of parameter grad update
 1. Andrej Karpathy Pong policy gradient blog post - https://karpathy.github.io/2016/05/31/rl/
 2. Andrej Karpathy Pong policy gradient lecture - https://www.youtube.com/watch?v=tqrcjHuNdmQ&t=1870s
 3. Andrej Karpathy Pong policy gradient gist - https://gist.github.com/karpathy/a4166c7fe253700972fcbc77e4ea32c5
+4. Cross entropy loss and softmax derivatives - https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
+
