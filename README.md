@@ -60,7 +60,7 @@ sign of parameter grad update
 ## 5. Performance and results:
 ![Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes](https://github.com/Blato122/pong-rl-gym/blob/main/3plot.png)
 
-![Gif showcasing two episodes of a Pong game, after 6700 episodes of training]()
+![Gif showcasing two episodes of a Pong game, after 6700 episodes of training](https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif)
 
 ## 6. Sources and useful links:
 1. Andrej Karpathy Pong policy gradient blog post - https://karpathy.github.io/2016/05/31/rl/
