@@ -60,7 +60,7 @@ sign of parameter grad update
 ## 5. Performance and results:
 ![Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes](https://github.com/Blato122/pong-rl-gym/blob/main/3plot.png)
 
-<--! couldn't center it using the above method !-->
+<!-- couldn't center it using the above method -->
 <p align="center">
   <img src="https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif" alt="Gif showcasing two episodes of a Pong game, after 6700 episodes of training" />
 </p>
