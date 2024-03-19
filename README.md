@@ -1,7 +1,7 @@
 # Policy gradient pong
 
 ## 1. Introduction:
-This program trains a reinforcement learning agent to play a game of Pong using the policy gradient algorithm. It is based on an excellent article and a lecture by Andrej Karpathy. /insert links here - gist, blog, yt/
+This program trains a reinforcement learning agent to play a game of Pong using the policy gradient algorithm. It is based on an excellent article and a lecture by Andrej Karpathy.
 My goal was to add some more functionalities to his code in order to understand the whole concept even better. The changes I introduced:
 * added third possible action (do nothing) besides moving up/down
     * modified the output layer so that it consists of 3 neurons, instead of 1
@@ -32,7 +32,16 @@ The game consists of episodes - games of 21. Each episode is made up of many poi
 
 After each point, the agent receives a reward that tells him how good his actions were. He gets a +1/-1 reward for the final move that led to winning/losing and a 0 reward for the rest of his actions. These rewards are then stored. After `batch_size` episodes, they get discounted. What that means, is that for each reward in a sequence, we assign a new reward, based on how far it is from the +1/-1 reward that led to scoring/losing a point. For example, if we set the `discount_factor` to 0.9 and the reward sequence is \[0, +1, 0, 0, 0, -1], we get \[+0.9, +1, -0.729 , -0.81, -0.9, -1] after discounting them (remember that each reward has an action associated with it -**DOPISAĆ COŚ O TYM 1ST BACKPROP STEP BO MOŻE NIEJASNE TO JEST**). We do that because it usually doesn't feel right to blame all the actions equally, because it is often the latest actions that cause the particular outcome (**damn wtf is that grammar lol**). Plus, we need to assign some reward to the actions that had a reward of 0 before because they certainly weren't neutral for the outcome. (**better sentence maybe as well)**. 
 
-Okay, but what about the loss function, its gradient and the parameter updates? How do these rewards encourage the agent to make correct decisions? In each iteration of the algorithm, before performing an action and receiving a reward, we perform a forward pass. This forward pass gives us the probabilities of performing each of the 3 actions. We then sample an action from these probabilities and calculate the loss function - cross entropy loss. It tells us how **no it doesnt tell us now how good it was but after getting a reward!!!**
+Okay, but what about the loss function, its gradient and the parameter updates? How do these rewards encourage the agent to make correct decisions? In each iteration of the algorithm, before performing an action and receiving a reward, we perform a forward pass. This forward pass gives us the probabilities of performing each one of the 3 actions. We then sample an action from these probabilities and calculate the cross entropy loss. 
+
+Minimizing the cross entropy loss, ∑ilogp(yi∣xi), is equivalent to minimizing the negative log likelihood loss or maximizing the log likelihood loss. And the log likelihood is, in turn, basically an equivalent of the product of all pre-log probabilities. Since we want the probabilties (of choosing the right action given some observation) to be as high as possible, the loss should be as close to 1 (perfect) as possible - we have to maximize it (because the probabilities are in range \[0,1], the likelihood is often a small number). 
+
+There is one problem, though. Since we're not doing supervised learning and we have no correct labels, this wouldn't work. We cannot encourage all the actions because some of them might be incorrect. This is why treat the sampled action as a fake label
+
+the outcome probabilities (all 3 of them) are simply a function of the MODEL PARAMETERS! so we can fill in the gradient for only one of them and decide whether we want to encourage it or discourage it by choosing a sign!!! 
+
+
+It tells us how **no it doesnt tell us now how good it was but after getting a reward!!!** For now, the 
 
 **rewards, discounting**
 
@@ -61,17 +70,13 @@ The flow:
 
 sign of parameter grad update
 
-## 3. Forward pass maths:
-
-## 4. Backpropagation maths:
-
-## 5. Performance and results:
+## 3. Performance and results:
 <p align="center">
    <img src="https://github.com/Blato122/pong-rl-gym/blob/main/3plot.png" alt="Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes" width=80% height=80%>
    <img src="https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif" alt="Gif showcasing two episodes of a Pong game, after 6700 episodes of training" />
 </p>
 
-## 6. Sources and useful links:
+## 4. Sources and useful links:
 1. Andrej Karpathy Pong policy gradient blog post - https://karpathy.github.io/2016/05/31/rl/
 2. Andrej Karpathy Pong policy gradient lecture - https://www.youtube.com/watch?v=tqrcjHuNdmQ&t=1870s
 3. Andrej Karpathy Pong policy gradient gist - https://gist.github.com/karpathy/a4166c7fe253700972fcbc77e4ea32c5
