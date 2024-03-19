@@ -73,7 +73,7 @@ sign of parameter grad update
 ## 3. Performance and results:
 <p align="center">
    <img src="https://github.com/Blato122/pong-rl-gym/blob/main/3plot.png" alt="Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes" width=80% height=80%>
-   <img src="https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif" alt="Gif showcasing two episodes of a Pong game, after 6700 episodes of training" />
+   <img src="https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif" alt="Gif showcasing a part of a Pong game, after 6700 episodes of training" />
 </p>
 
 ## 4. Sources and useful links:
@@ -81,4 +81,4 @@ sign of parameter grad update
 2. Andrej Karpathy Pong policy gradient lecture - https://www.youtube.com/watch?v=tqrcjHuNdmQ&t=1870s
 3. Andrej Karpathy Pong policy gradient gist - https://gist.github.com/karpathy/a4166c7fe253700972fcbc77e4ea32c5
 4. Cross entropy loss and softmax derivatives - https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
-
+5. David Silver's lectures on reinforcement learning - https://www.davidsilver.uk/teaching/ and https://www.youtube.com/playlist?list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ
