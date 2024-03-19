@@ -14,7 +14,7 @@ My goal was to add some more functionalities to his code in order to understand 
 * now using the @ operator instead od np.dot()
 * learning rate changed from 1e-4 to 1e-3 (seems to have sped up the learning)
 * the program now creates and updates plots of running average reward and running average wins over the last 100 episodes
-* in render mode, the program now displays the game using matplotlib's imshow() function, allowing it to be rendered on WSL2 using XServer on Windows
+* in render mode, the program now displays the frames using matplotlib's imshow() function, allowing it to be rendered on WSL2 using XServer on Windows
 
 ## 2. How does it work?
 The program uses [gymnasium](https://gymnasium.farama.org/index.html) which provides many reinforcement learning environments, such as Atari Pong-v0 in this case. There are 3 main environment functions:
