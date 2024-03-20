@@ -34,9 +34,12 @@ After each point, the agent receives a reward that tells him how good his action
 
 Okay, but what about the loss function, its gradient and the parameter updates? How do these rewards encourage the agent to make correct decisions? In each iteration of the algorithm, before performing an action and receiving a reward, we perform a forward pass. This forward pass gives us the probabilities of performing each one of the 3 actions. We then sample an action from these probabilities and calculate the cross entropy loss. 
 
-Minimizing the cross entropy loss, ∑ilogp(yi∣xi), is equivalent to minimizing the negative log likelihood loss or maximizing the log likelihood loss. And the log likelihood is, in turn, basically an equivalent of the product of all pre-log probabilities. Since we want the probabilties (of choosing the right action given some observation) to be as high as possible, the loss should be as close to 1 (perfect) as possible - we have to maximize it (because the probabilities are in range \[0,1], the likelihood is often a small number). 
+Minimizing the cross entropy loss, ∑ilogp(yi∣xi), is equivalent to minimizing the negative log likelihood loss or maximizing the log likelihood loss. Log likelihood is, in turn, basically an equivalent of the product of all pre-log probabilities. Since we want the probabilties (of choosing the right action given some observation) to be as high as possible, the loss should be as close to 1 (perfect) as possible - we have to maximize it (because the probabilities are in range \[0,1], the likelihood is often a very small number). But because it is more convenient to use the log probabilities, we'll stick to maximizing the log likelihood loss.
 
-There is one problem, though. Since we're not doing supervised learning and we have no correct labels, this wouldn't work. We cannot encourage all the actions because some of them might be incorrect. This is why treat the sampled action as a fake label
+There is one problem, though. Since we're not doing supervised learning and we have no correct labels, this wouldn't work. We cannot encourage all the actions that we took because some of them might be incorrect. This is why treat the sampled action as a fake label that might not necessarily be correct. Now, the **most important part** - we multiply the loss of an action by a reward received for performing it. The actions that received a negative reward will now actually be minimizing the negative log likelihood loss making them less likely in the future!
+
+Does the gradient of the loss function change when we modulate it with these numbers (called advantage)? To my understanding, no, because it is simply a scalar - the loss is not a function of advantage. That's why we can first calculate the derivative of the pre-advantage loss and then, after discounting the rewards, modulate it with them. 
+
 
 the outcome probabilities (all 3 of them) are simply a function of the MODEL PARAMETERS! so we can fill in the gradient for only one of them and decide whether we want to encourage it or discourage it by choosing a sign!!! ten fill in the gradient to po prostu chyba chodzi o to, że w cross entropy jego indeks dajemy jako 1, a pozostałe jako 0. wtedy loss zależy tylko od tej podjętej akcji, nie składają się na niego inne akcje i licząc gradient lossu, możemy zaktualizować parametry tak, aby tylko ta jedna akcja została dis/encouraged
 
@@ -57,18 +60,15 @@ The flow:
     * set the input to the neural network to be the difference of two last frames in order to capture motion
     * perform the forward pass and get the probabilities of performing each action
     * sample an action from the returned probabilities
-    * compute the cross entropy loss derivative **(??????????????????????????????????????????)**
-    * **?**
+    * compute the cross entropy loss derivative (pre-advantage)
     * perform the sampled action, get a new observation and the reward
     * if an episode has ended:
-        * discount the rewards **(??? explain how it works)**
-        * **?**
-        * modulate the gradient with the advantage **(the discounted rewards??)**
-        * **?**
+        * discount the rewards
+        * modulate the gradient with the advantage (the discounted rewards)
         * perform the rest of the backward pass
         * update the parameters
 
-sign of parameter grad update
+**check the sign of parameter grad update**
 
 ## 3. Performance and results:
 <p align="center">
