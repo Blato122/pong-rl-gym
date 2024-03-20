@@ -1,45 +1,31 @@
-""" Trains an agent with (stochastic) Policy Gradients on Pong. Uses OpenAI Gym. """
 import numpy as np
 import pickle
 import gymnasium as gym
 import random
 from matplotlib import pyplot as plt
 
-"""
-refactor that later!! functions etc
-"""
-
 # hyperparameters
-H = 120 # number of hidden layer neurons
-H2 = 60
+H = 120 # number of hidden layer neurons in the 1st hidden layer
+H2 = 60 # number of hidden layer neurons in the 2nd hidden layer
 batch_size = 10 # every how many episodes to do a param update?
-learning_rate = 1e-3 # CHANGED FROM 1e-4
+learning_rate = 1e-3 # changed from 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-resume = True # resume from previous checkpoint?
+resume = False # resume from previous checkpoint?
 render = True
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('3save-1e-3-120-60-plus0_7-6700.p', 'rb'))
+  model = pickle.load(open('3save.p', 'rb'))
 else:
   model = {}
-  # - - - - - -
-  """ CHANGE 1 - H,D TO D,H"""
-  # - - - - - -
   model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
-  model['Wa'] = np.random.randn(H,H2) / np.sqrt(H)
-  model['W2'] = np.random.randn(H2,3) / np.sqrt(H)
+  model['W2'] = np.random.randn(H,H2) / np.sqrt(H)
+  model['W3'] = np.random.randn(H2,3) / np.sqrt(H)
   
-# - - - - - -
-""" CHANGE 4(?) - sgd instead of this rmsprop thing - NAAH"""
-# - - - - - -
 grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
-
-def sigmoid(x): 
-  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
 
 def softmax(x):
   # x - list of len 3
@@ -71,9 +57,7 @@ def discount_rewards(r):
   return discounted_r
 
 def policy_forward(x):
-  # - - - - - -
-  """ CHANGE 2 - @ NOTATION """
-  # - - - - - -
+  """ forward pass, returning probabilities of taking each of the 3 actions and the hidden states (needed later) """
   # matmul docs:
   # If the first argument is 1-D, it is promoted to a matrix by prepending a 1 to its dimensions.
   # After matrix multiplication the prepended 1 is removed.
@@ -82,38 +66,35 @@ def policy_forward(x):
 
   h = x @ model['W1'] # (6400,) @ (6400, 200) ---> (1, 6400) @ (6400, 200) ---> (1, 200) ---> (200,) 
   h[h<0] = 0 # ReLU nonlinearity
-  h2 = h @ model['Wa'] # (200,) @ (200, 100) ---> (1, 200) @ (200, 100) ---> (1, 100) -> (100,)
+  h2 = h @ model['W2'] # (200,) @ (200, 100) ---> (1, 200) @ (200, 100) ---> (1, 100) -> (100,)
   h2[h2<0] = 0 # ReLU nonlinearity
-  logits = h2 @ model['W2'] # (100,) @ (100, 3) ---> (1, 100) @ (100, 3) ---> (1, 3) ---> (3,)
+  logits = h2 @ model['W3'] # (100,) @ (100, 3) ---> (1, 100) @ (100, 3) ---> (1, 3) ---> (3,)
   p = softmax(logits)
-  return p, h, h2 # return probability of taking each of the 3 actions and the hidden states
+  return p, h, h2
 
-def policy_backward(eph, eph2, epdlogp):
-    # - - - - - -
-  """ CHANGE 2 - SHAPE COMPATIBLE WITH the model + shapes like in the notebook """
-  # - - - - - -
-  """ backward pass. (eph is array of intermediate hidden states) """
-  dW2 = eph2.T @ epdlogp # (100, 1234) @ (1234, 3) ---> (100, 3)
-  dh2 = epdlogp @ model["W2"].T # (1234, 3) @ (3, 100) ---> (1234, 100)
-  dh2[eph2 <= 0] = 0 # dh2: (1234, 100), eph2: (1234, 100), OK
-  dWa = eph.T @ dh2 # (200, 1234) @ (1234, 100) ---> (200, 100)       umm more or less, shapes are ok but idk
-  # dW2 = np.dot(eph.T, epdlogp).ravel()
-  # print("dW2, eph.T, epdlogp", dW2.shape, eph.T.shape, epdlogp.shape)
-  # print("pre dh: epdlogp, modelW2", epdlogp.shape, model['W2'].shape)
-  dh = dh2 @ model["Wa"].T # (1234, 100) @ (100, 200) ---> (1234, 200)     shapes ok but idk
-  # dh = np.outer(epdlogp, model['W2'])
-  # print("dh, epdlogp, modelW2.T", dh.shape, epdlogp.shape, model['W2'].T.shape)
-  dh[eph <= 0] = 0 # dh: (1234, 200), eph: (1234, 200), OK
-  dW1 = epx.T @ dh # (6400, 1234) @ (1234, 200) ---> (6400, 200)
-  #dW1 = np.dot(dh.T, epx)
-  # print("dW1, dh.T, epx", dW1.shape, dh.T.shape, epx.shape)
-  return {'W1':dW1, 'Wa':dWa, 'W2':dW2}
+def policy_backward(ep_hs, ep_h2s, ep_dL_dlogits):
+  """ backward pass (ep_hs and ep_h2s are arrays of intermediate hidden states) """
+  dL_dW3 = ep_h2s.T @ ep_dL_dlogits # (100, 1234) @ (1234, 3) ---> (100, 3)
+  dL_dh2 = ep_dL_dlogits @ model["W3"].T # (1234, 3) @ (3, 100) ---> (1234, 100)
+  dL_dh2[ep_h2s <= 0] = 0 # dL_dh2: (1234, 100), ep_h2s: (1234, 100), OK
+  dL_dW2 = ep_hs.T @ dL_dh2 # (200, 1234) @ (1234, 100) ---> (200, 100)       umm more or less, shapes are ok but idk
+  # dL_dW3 = np.dot(ep_hs.T, ep_dL_dlogits).ravel()
+  # print("dL_dW3, ep_hs.T, ep_dL_dlogits", dL_dW3.shape, ep_hs.T.shape, ep_dL_dlogits.shape)
+  # print("pre dL_dh: ep_dL_dlogits, modelW2", ep_dL_dlogits.shape, model['W3'].shape)
+  dL_dh = dL_dh2 @ model["W2"].T # (1234, 100) @ (100, 200) ---> (1234, 200)     shapes ok but idk
+  # dL_dh = np.outer(ep_dL_dlogits, model['W3'])
+  # print("dL_dh, ep_dL_dlogits, modelW2.T", dL_dh.shape, ep_dL_dlogits.shape, model['W3'].T.shape)
+  dL_dh[ep_hs <= 0] = 0 # dL_dh: (1234, 200), ep_hs: (1234, 200), OK
+  dL_dW1 = ep_xs.T @ dL_dh # (6400, 1234) @ (1234, 200) ---> (6400, 200)
+  #dL_dW1 = np.dot(dL_dh.T, ep_xs)
+  # print("dL_dW1, dL_dh.T, ep_xs", dL_dW1.shape, dL_dh.T.shape, ep_xs.shape)
+  return {'W1':dL_dW1, 'W2':dL_dW2, 'W3':dL_dW3}
 
 env = gym.make("Pong-v0") if not render else gym.make("Pong-v0", render_mode="rgb_array")
 # env.metadata["render_fps"] = 60
 observation = env.reset()
 prev_x = None # used in computing the difference frame
-xs,hs,h2s,dlogps,drs = [],[],[],[],[]
+xs,hs,h2s,dL_dlogits,rewards = [],[],[],[],[]
 running_mean = None
 running_wins = None
 reward_sum = 0
@@ -123,12 +104,11 @@ plot_running_rewards = []
 plot_running_wins = []
 img = None
 
-
 while True:
   if render: 
     if img is None:
       img = plt.imshow(env.render())
-    elif plt.fignum_exists(1): # sys exit if doesnt exist?
+    elif plt.fignum_exists(1): # sys exit if doesn't exist?
       img.set_data(env.render())
     plt.pause(0.001)
 
@@ -142,46 +122,30 @@ while True:
   NOOP, RIGHT, LEFT = 0, 2, 3
 
   # forward the policy network and sample an action from the returned probability
-  aprob, h, h2 = policy_forward(x)
-  # action = np.random.choice(range(len(aprob)), p=aprob)
-  action = random.choices(range(len(aprob)), weights=aprob, k=1)
+  action_probs, h, h2 = policy_forward(x)
+  # action = np.random.choice(range(len(action_probs)), p=action_probs)
+  action = random.choices(range(len(action_probs)), weights=action_probs, k=1)
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
   hs.append(h) # hidden state
-  h2s.append(h2)
+  h2s.append(h2) # hidden state
 
   # cross entropy loss derivative
-  y = np.zeros_like(aprob)
+  y = np.zeros_like(action_probs)
   y[action] = 1
 
   # https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
-  # changed += to -= when updating the gradient!!!
-  dlogps.append(y - aprob) # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
-  # dlogps shape - list of 1234 or so elements, aprob shape - 3
+  dL_dlogits.append(y - action_probs) 
+  # grad that encourages the action that was taken to be taken (see http://cs231n.github.io/neural-networks-2/#losses if confused)
+  # dL_dlogits shape - list of 1234 or so elements, action_probs shape - 3
 
   """
-  what is even the gradient that we calculate
-  a function or a value?
-  """
-
-  """
-  how does that grad work?
-  why y-aprob?
-  i mean, how does that encourage/discourage anything?
-  
-  
-  think that through tomorrow
-  AND WRITE EVERYTHING DOWN!!!
-  
-  i think that this program is ok, however the stagnation after ~3k episodes in concerning..."""
-
-  """
-  we choose an action
-  don't know whether it's good or bad yet
-  we calculate the gradient (i.e. direction of the fastest ascent) of the cross entropy loss
-  after getting feedback on whether the action was good or not, we modulate the gradient - multiply by -1 if it was bad and by 1 if it was good
-  we adjust the parameters so that the cross entropy loss is now lower <=> likelihood of taking the action is higher
+  the gradient that we calculate is a value not a function!
+  we calculate the gradient of a loss function for a given
+  loss value.
+  it tells us the direction of the fastest ascent while standing
+  in a given point.
   """
 
   # step the environment and get new measurements
@@ -192,7 +156,7 @@ while True:
   observation, reward, done, _, _ = env.step(a)
   reward_sum += reward
 
-  drs.append(reward) # record reward (has to be done after we call step() to get reward for previous action)
+  rewards.append(reward) # record reward (has to be done after we call step() to get reward for previous action)
   
   if reward != 0: # Pong has either +1 or -1 reward exactly when game ends.
     print(('ep %d: game finished, reward: %f' % (episode_number, reward)) + ('' if reward == -1 else ' !!!!!!!!'))
@@ -201,20 +165,20 @@ while True:
     episode_number += 1
 
     # stack together all inputs, hidden states, action gradients, and rewards for this episode
-    epx = np.vstack(xs)
-    eph = np.vstack(hs)
-    eph2 = np.stack(h2s)
-    epdlogp = np.vstack(dlogps)
-    epr = np.vstack(drs)
-    xs,hs,h2s,dlogps,drs = [],[],[],[],[] # reset array memory
+    ep_xs = np.vstack(xs)
+    ep_hs = np.vstack(hs)
+    ep_h2s = np.stack(h2s)
+    ep_dL_dlogits = np.vstack(dL_dlogits)
+    ep_rewards = np.vstack(rewards)
+    xs,hs,h2s,dL_dlogits,rewards = [],[],[],[],[] # reset array memory
 
     # compute the discounted reward backwards through time
-    discounted_epr = discount_rewards(epr)
+    discounted_ep_rewards = discount_rewards(ep_rewards)
 
-    print("PG magic:", epdlogp.shape, discounted_epr.shape, "\n")
-    epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
-    print("after PG magic:", epdlogp.shape, "\n")
-    grad = policy_backward(eph, eph2, epdlogp)
+    print("PG magic:", ep_dL_dlogits.shape, discounted_ep_rewards.shape, "\n")
+    ep_dL_dlogits *= discounted_ep_rewards # modulate the gradient with advantage (the discounted rewards)
+    print("after PG magic:", ep_dL_dlogits.shape, "\n")
+    grad = policy_backward(ep_hs, ep_h2s, ep_dL_dlogits)
     # for k in model: 
     #   print(grad_buffer[k].shape)
     #   print(grad[k].shape)
@@ -226,9 +190,6 @@ while True:
       for k,v in model.items():
         g = grad_buffer[k] # gradient
         rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
-        # move in the gradient direction (not negative gradient)
-        # so the cross entropy loss needs to be negative
-        # so that instead of minimizing the loss ()
         model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
         grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
       
@@ -244,7 +205,8 @@ while True:
     print('resetting env. episode reward total was %f. running mean: %f. running wins: %f' % (reward_sum, running_mean, running_wins * 100) )
     plot_running_rewards.append(running_mean)
     plot_running_wins.append(running_wins * 100)
-    if episode_number % 100 == 0: 
+
+    if episode_number % 100 == 0: # save the model and update the plots
       # hmm maybe add eval mode?
       if not render: # since render is basically eval mode, I don't want to create a training progress plot
         fig, ax1 = plt.subplots(figsize=(8, 6))
@@ -277,8 +239,3 @@ while True:
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
-
-    """
-    useful:
-    https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
-    """

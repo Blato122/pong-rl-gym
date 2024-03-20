@@ -1,5 +1,3 @@
-""" Trains an agent with (stochastic) Policy Gradients on Pong. Uses OpenAI Gym. """
-# import numpy as np
 import gymnasium as gym
 
 import torch
@@ -8,31 +6,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 from matplotlib import pyplot as plt
 
-"""
-refactor that later!! functions etc
-"""
-
-# spr. różnicę z:
-#-bias
-#-more hidden layers
-#-different lr?
-#-CUDA!!!
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 torch.manual_seed(42)
-
-"""
-lr to 1e-3
-crop photo better!!!
-"""
 
 # hyperparameters
 N_IN = 80 * 80
 N_OUT = 3
 N_HIDDEN = 200
 batch_size = 10 # every how many episodes to do a param update?
-learning_rate = 1e-4
+learning_rate = 1e-3 # changed from 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
@@ -45,7 +28,7 @@ render = False
 #   F.softmax()
 # )
 
-# in Policy? as tensors(prob naah, some cat instead of append)?
+# in Policy? as tensors(prob not, some cat instead of append)?
 log_probs = []
 rewards_pre_discount = []
 

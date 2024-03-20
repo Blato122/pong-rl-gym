@@ -8,13 +8,23 @@ I KONIECZNIE ZROBIĆ OPIS DOKŁADNY SPOSOBU PYTORCH I OD ZERA!!! ŻEBY POTEM MÓ
 
 a potem rl dalej, wykłady, tetris, dqn może, jakieś auta...
 
+DODAĆ PORÓWNANIE WYKRESÓW POTEM DLA CUDY TEŻ! ALE CUDĘ TO ZOSTAWIĆ SOBIE NA PONIEDIZŁKI/PIĄTKI BO TO TAKIE BAWIENIE SIĘ ŻEBY ZADZIAŁAŁO W KOŃCU
 
 
+try with sgd again
+softmax subtract max!
+"""
+refactor that later!! functions etc
+"""
 
-
-
+# spr. różnicę z:
+#-bias
+#-more hidden layers
+#-different lr?
+#-CUDA!!!
 
 >ODRZUCONE:
 signal przy render już niepotrzebny
 ion też chyba nie
 zapisywanie pod inną nazwą też nie, bo przecież podczas jednego treningu musi się nadpisywać
+EXTRACT - it wont work cos the number of inputs changes
