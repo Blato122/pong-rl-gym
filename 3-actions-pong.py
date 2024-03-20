@@ -12,12 +12,12 @@ learning_rate = 1e-3 # changed from 1e-4
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
-render = True
+render = False
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
 if resume:
-  model = pickle.load(open('3save.p', 'rb'))
+  model = pickle.load(open('something.p', 'rb'))
 else:
   model = {}
   model['W1'] = np.random.randn(D,H) / np.sqrt(D) # "Xavier" initialization
@@ -232,9 +232,9 @@ while True:
         # Adjust layout to avoid overlapping labels
         plt.tight_layout()
         plt.grid()
-        fig.savefig('3plot.png')
+        fig.savefig('plot.png')
 
-      pickle.dump(model, open('3save.p', 'wb'))
+      pickle.dump(model, open('save.p', 'wb'))
     
     reward_sum = 0
     observation = env.reset() # reset env
