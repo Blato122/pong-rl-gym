@@ -64,7 +64,7 @@ The flow:
 
 ## 3. Performance and results:
 <p align="center">
-   <img src="https://github.com/Blato122/pong-rl-gym/blob/main/3plot.png" alt="Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes" width=80% height=80%>
+   <img src="https://github.com/Blato122/pong-rl-gym/blob/main/24h-11800ep-6.1reward-86.5win-plot.png" alt="Plot showing the performance of a neural network - running average reward and wins over the last 100 episodes" width=80% height=80%>
    <img src="https://github.com/Blato122/pong-rl-gym/blob/main/pong-gif-15sec.gif" alt="Gif showcasing a part of a Pong game, after 6700 episodes of training" />
 </p>
 
